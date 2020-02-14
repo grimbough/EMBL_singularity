@@ -1,0 +1,43 @@
+BootStrap: docker
+From: bioconductor/bioconductor_full:RELEASE_3_10
+
+
+%labels
+  Maintainer Mike Smith
+  RStudio_Version 1.2.1335
+
+%help
+  This will run RStudio Server
+
+%environment
+  export PATH=/usr/lib/rstudio-server/bin:${PATH}
+
+%setup
+  install -Dv password_reader2.sh ${SINGULARITY_ROOTFS}/usr/lib/rstudio-server/bin/password_reader2
+  install -Dv pam-helper.sh ${SINGULARITY_ROOTFS}/usr/lib/rstudio-server/bin/pam-helper
+
+%post
+  # Software versions
+  export RSTUDIO_VERSION=1.2.1335
+
+  # Install RStudio Server
+  apt-get update
+  apt-get install -y --no-install-recommends \
+    gdebi-core
+
+  # Clean up
+  rm -rf /var/lib/apt/lists/*
+
+  # Create group share mount point
+  mkdir -p /g
+  mkdir -p /scratch
+  mkdir -p /tmpdata
+
+%runscript
+  PASSWORD=`password_reader2`
+  port=`/bin/bash -c 'echo $((RANDOM + 5000))'`
+  host=`hostname`
+  echo "\nConnect via http://${host}:${port}"
+  PASSWORD=${PASSWORD} rserver --www-port=${port} --auth-none=0 --auth-pam-helper-path=pam-helper \
+    --secure-cookie-key-file /tmp/rstudio-server-${USER}/secure-cookie-key-${port} \
+    --rsession-which-r /usr/bin/R
